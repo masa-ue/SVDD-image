@@ -1,12 +1,14 @@
 #
 
 *.sh
-*.pth
+# *.pth
 log
 data
 old*
 wandb
 *.npy
+*.jpg
+images/
 
 
 #

@@ -8,7 +8,13 @@ from typing import Callable, List, Optional, Union
 
 sd_model = DiffusionPipeline.from_pretrained("runwayml/stable-diffusion-v1-5", local_files_only=True)
 sd_model.to('cuda') # TODO
+sd_model.vae.requires_grad_(False)
+sd_model.text_encoder.requires_grad_(False)
+sd_model.unet.requires_grad_(False)
+
 sd_model.vae.eval()
+sd_model.text_encoder.eval()
+sd_model.unet.eval()
 
 """modified from prepare_mask_and_masked_image https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/stable_diffusion/pipeline_stable_diffusion_inpaint.py"""
 def prepare_image(image):
