@@ -310,13 +310,10 @@ class GuidedSDPipeline(StableDiffusionPipeline):
 
 if __name__ == "__main__":
     
-    import os
-    if 'CUDA_VISIBLE_DEVICES' not in os.environ:
-        os.environ['CUDA_VISIBLE_DEVICES'] = '7'
     torch.cuda.empty_cache()
     
     device = 'cuda'
-    pipeline = GuidedSDPipeline.from_pretrained("runwayml/stable-diffusion-v1-5")
+    pipeline = GuidedSDPipeline.from_pretrained("runwayml/stable-diffusion-v1-5", local_files_only=True)
     pipeline.to(device)
     pipeline.vae.requires_grad_(False)
     pipeline.text_encoder.requires_grad_(False)
@@ -325,17 +322,35 @@ if __name__ == "__main__":
     pipeline.vae.eval()
     pipeline.text_encoder.eval()
     pipeline.unet.eval()
+    
+    pipeline.scheduler.set_timesteps(50, device=device)
+    print(pipeline.scheduler.timesteps)
 
-    reward_model = torch.load('model/reward_predictor_epoch_2.pth').to(device) # get the sinusoidalTime MLP
+    reward_model = torch.load('model/reward_predictor_epoch_3.pth').to(device) # get the sinusoidalTime MLP
     reward_model.eval()
     reward_model.requires_grad_(False)
     
     import prompts as prompts_file
     eval_prompt_fn = getattr(prompts_file, 'eval_simple_animals')
-    eval_prompts, eval_prompt_metadata = zip(
-        *[eval_prompt_fn() for _ in range(16)]
-    )   
     
     pipeline.setup_reward_model(reward_model)
     pipeline.set_target(7)
     pipeline.set_guidance(100)
+    
+    image = []
+    batch_size = 2
+    num_images = 64
+    init_latents = None
+    
+    for i in range(num_images // batch_size):
+        eval_prompts, eval_prompt_metadata = zip(
+            *[eval_prompt_fn() for _ in range(batch_size)]
+        )   
+        eval_prompts = list(eval_prompts)
+        
+        if init_latents is None:
+            init_i = None
+        else:
+            init_i = init_latents[i]
+        image_ = pipeline(eval_prompts, num_images_per_prompt=batch_size, latents=init_i).images # List of PIL.Image objects
+        image.extend(image_)
