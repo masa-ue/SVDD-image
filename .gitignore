@@ -8,6 +8,8 @@ old*
 wandb
 *.npy
 *.jpg
+*.txt
+new_data
 images/
 
 

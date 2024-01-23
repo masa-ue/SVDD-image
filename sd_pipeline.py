@@ -1,6 +1,9 @@
 from diffusers import StableDiffusionPipeline 
 import torch 
-from transformers import CLIPImageProcessor, CLIPTextModel, CLIPTokenizer
+from transformers import CLIPModel, CLIPImageProcessor, CLIPTextModel, CLIPTokenizer
+from aesthetic_scorer import SinusoidalTimeMLP
+from typing import Callable, List, Optional, Union, Dict, Any
+import torchvision
 
 from diffusers.configuration_utils import FrozenDict
 #from diffusers.loaders import FromCkptMixin, LoraLoaderMixin, TextualInversionLoaderMixin
@@ -203,7 +206,10 @@ class GuidedSDPipeline(StableDiffusionPipeline):
                 target = torch.FloatTensor([[self.target]]).to(latents.device)
                 target = target.repeat(batch_size * num_images_per_prompt, 1)
                 sqrt_1minus_alpha_t = (1 - self.scheduler.alphas_cumprod[t] ) **0.5
-                noise_pred += sqrt_1minus_alpha_t * self.target_guidance * self.compute_gradient(latents, target=target)
+                
+                
+                timestep_list = torch.tensor([t]).to(latents.device).repeat(batch_size * num_images_per_prompt)
+                noise_pred += sqrt_1minus_alpha_t * self.target_guidance * self.compute_gradient(latents, target=target, timesteps=timestep_list)
 
 
                 ############################################################
@@ -273,9 +279,28 @@ class GuidedSDPipeline(StableDiffusionPipeline):
 
 
     @torch.enable_grad()
-    def compute_gradient(self, latent, target):
+    def compute_gradient(self, latent, target, timesteps):
         latent.requires_grad_(True)
-        out = self.reward_model(latent)
+        
+        # prepare CLIP models and normalizations
+        normalize = torchvision.transforms.Normalize(mean=[0.48145466, 0.4578275, 0.40821073],
+                                                std=[0.26862954, 0.26130258, 0.27577711])
+        resize = torchvision.transforms.Resize(224, antialias=False)
+        clip = CLIPModel.from_pretrained("openai/clip-vit-large-patch14")
+        clip.eval()
+        clip.to(latent.device)
+        
+        # convert to CLIP embeddings
+        im_pix_un = self.vae.decode(latent.to(self.vae.dtype) / 0.18215).sample
+        im_pix = ((im_pix_un / 2) + 0.5).clamp(0, 1) 
+        im_pix = resize(im_pix)
+        im_pix = normalize(im_pix).to(im_pix_un.dtype)
+        
+        embed = clip.get_image_features(pixel_values=im_pix)
+        embed = embed / torch.linalg.vector_norm(embed, dim=-1, keepdim=True)
+        
+        out = self.reward_model(embed, timesteps)
+
         l2_error = 0.5 * torch.nn.MSELoss()(out, target)
         self.reward_model.zero_grad()
         l2_error.backward()
@@ -284,4 +309,33 @@ class GuidedSDPipeline(StableDiffusionPipeline):
 
 
 if __name__ == "__main__":
+    
+    import os
+    if 'CUDA_VISIBLE_DEVICES' not in os.environ:
+        os.environ['CUDA_VISIBLE_DEVICES'] = '7'
+    torch.cuda.empty_cache()
+    
+    device = 'cuda'
     pipeline = GuidedSDPipeline.from_pretrained("runwayml/stable-diffusion-v1-5")
+    pipeline.to(device)
+    pipeline.vae.requires_grad_(False)
+    pipeline.text_encoder.requires_grad_(False)
+    pipeline.unet.requires_grad_(False)
+
+    pipeline.vae.eval()
+    pipeline.text_encoder.eval()
+    pipeline.unet.eval()
+
+    reward_model = torch.load('model/reward_predictor_epoch_2.pth').to(device) # get the sinusoidalTime MLP
+    reward_model.eval()
+    reward_model.requires_grad_(False)
+    
+    import prompts as prompts_file
+    eval_prompt_fn = getattr(prompts_file, 'eval_simple_animals')
+    eval_prompts, eval_prompt_metadata = zip(
+        *[eval_prompt_fn() for _ in range(16)]
+    )   
+    
+    pipeline.setup_reward_model(reward_model)
+    pipeline.set_target(7)
+    pipeline.set_guidance(100)

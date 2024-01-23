@@ -45,8 +45,8 @@ criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
 # Prepare the training dataset with the encoded images and noisy outputs
-targets = torch.tensor(np.load('data/y_noisy.npy'), dtype=torch.float32)
-encoded_imgs = torch.tensor(np.load('data/x_vae_latents.npy'), dtype=torch.float32)
+targets = torch.tensor(np.load('new_data/all_y_noisy.npy'), dtype=torch.float32)
+encoded_imgs = torch.tensor(np.load('new_data/all_vae_latents.npy'), dtype=torch.float32)
 
 train_dataset = torch.utils.data.TensorDataset(encoded_imgs, targets)
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=8)
