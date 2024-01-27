@@ -25,7 +25,7 @@ def parse():
     parser.add_argument("--target", type=float, default=7.0)
     parser.add_argument("--guidance", type=float, default=100)
     parser.add_argument("--out_dir", type=str, default= "")
-    parser.add_argument("--num_images", type=int, default=16)
+    parser.add_argument("--num_images", type=int, default=32)
     parser.add_argument("--bs", type=int, default=2)
     parser.add_argument("--val_bs", type=int, default=4)
     parser.add_argument("--seed", type=int, default=-1)
@@ -48,7 +48,7 @@ if args.seed > 0:
 else:
     init_latents = None
 
-run_name = f"target_{args.target}_guidance_{args.guidance}"
+run_name = f"Online_y_{args.target}_guidance_{args.guidance}"
 unique_id = datetime.datetime.now().strftime("%Y.%m.%d_%H.%M.%S")
 run_name = run_name + '_' + unique_id
 
@@ -61,7 +61,7 @@ except:
     pass
 
 
-wandb.init(project="RCGDM", name=run_name,config=args)
+wandb.init(project="RCGDM-online", name=run_name,config=args)
 
 
 sd_model = GuidedSDPipeline.from_pretrained("runwayml/stable-diffusion-v1-5", local_files_only=True)
@@ -80,7 +80,7 @@ sd_model.text_encoder.eval()
 sd_model.unet.eval()
 
 
-reward_model = torch.load('model/reward_predictor_epoch_3.pth').to(device)
+reward_model = torch.load('model/online/reward_predictor_epoch_3.pth').to(device)
 reward_model.eval()
 reward_model.requires_grad_(False)
 

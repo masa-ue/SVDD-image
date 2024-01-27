@@ -6,6 +6,12 @@ from typing import Callable, List, Optional, Union, Dict, Any
 import torchvision
 
 from diffusers.configuration_utils import FrozenDict
+
+import os
+import sys
+sys.path.append(os.getcwd())
+from diffusers_patch.ddim_with_kl import ddim_step_KL
+
 #from diffusers.loaders import FromCkptMixin, LoraLoaderMixin, TextualInversionLoaderMixin
 from diffusers.models import AutoencoderKL, UNet2DConditionModel
 from diffusers.schedulers import KarrasDiffusionSchedulers
@@ -165,6 +171,8 @@ class GuidedSDPipeline(StableDiffusionPipeline):
         extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
 
         # 7. Denoising loop
+        kl_loss = 0
+        
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
@@ -183,8 +191,7 @@ class GuidedSDPipeline(StableDiffusionPipeline):
                 # perform guidance
                 if do_classifier_free_guidance:
                     noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
-                    noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
-
+                    old_noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
 
 
@@ -209,7 +216,7 @@ class GuidedSDPipeline(StableDiffusionPipeline):
                 
                 
                 timestep_list = torch.tensor([t]).to(latents.device).repeat(batch_size * num_images_per_prompt)
-                noise_pred += sqrt_1minus_alpha_t * self.target_guidance * self.compute_gradient(latents, target=target, timesteps=timestep_list)
+                noise_pred = old_noise_pred + sqrt_1minus_alpha_t * self.target_guidance * self.compute_gradient(latents, target=target, timesteps=timestep_list)
 
 
                 ############################################################
@@ -219,7 +226,16 @@ class GuidedSDPipeline(StableDiffusionPipeline):
 
 
                 # compute the previous noisy sample x_t -> x_t-1
-                latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs).prev_sample
+                # latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs).prev_sample
+                latents, kl_terms = ddim_step_KL(
+                                    self.scheduler,
+                                    noise_pred,   # (2,4,64,64),
+                                    old_noise_pred, # (2,4,64,64),
+                                    t,
+                                    latents,
+                                    eta=eta,  # 1.0
+                                )
+                kl_loss += torch.mean(kl_terms)
 
                 # call the callback, if provided
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
@@ -263,7 +279,7 @@ class GuidedSDPipeline(StableDiffusionPipeline):
         if not return_dict:
             return (image, has_nsfw_concept)
 
-        return StableDiffusionPipelineOutput(images=image, nsfw_content_detected=has_nsfw_concept)
+        return image, kl_loss
 
 
     def setup_reward_model(self, reward_model):
