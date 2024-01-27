@@ -94,6 +94,9 @@ eval_prompt_list = []
 KL_list = []
 
 for i in range(args.num_images // args.bs):
+    wandb.log(
+        {"inner_iter": i}
+    )
     if init_latents is None:
         init_i = None
     else:
