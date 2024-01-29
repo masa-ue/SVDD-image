@@ -13,7 +13,7 @@ new_data
 logs/
 images/
 model/pre_generated_latents-15360.pth
-model/online/
+# model/online/
 
 
 #

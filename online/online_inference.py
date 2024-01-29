@@ -1,4 +1,9 @@
 
+import os,sys
+os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+cwd = os.getcwd()
+sys.path.append(cwd)
+
 from sd_pipeline import GuidedSDPipeline
 from diffusers import DDIMScheduler
 import torch
@@ -8,7 +13,7 @@ import PIL
 from typing import Callable, List, Optional, Union, Dict, Any
 from dataset import AVACLIPDataset, AVALatentDataset
 from vae import encode
-import os
+
 from aesthetic_scorer import SinusoidalTimeMLP, MLPDiff
 import wandb
 import argparse
@@ -80,7 +85,7 @@ sd_model.text_encoder.eval()
 sd_model.unet.eval()
 
 
-reward_model = torch.load('model/online/reward_predictor_epoch_3.pth').to(device)
+reward_model = torch.load('model/online/reward_predictor_epoch_46.pth').to(device)
 reward_model.eval()
 reward_model.requires_grad_(False)
 
@@ -94,6 +99,9 @@ eval_prompt_list = []
 KL_list = []
 
 for i in range(args.num_images // args.bs):
+    wandb.log(
+        {"inner_iter": i}
+    )
     if init_latents is None:
         init_i = None
     else:
@@ -132,19 +140,23 @@ with torch.no_grad():
         
         ### Obtaining ground truth reward
         gt_rewards = eval_model(inputs)
-        print("eval_rewards_mean: ", torch.mean(gt_rewards))
+        # print("eval_rewards_mean: ", torch.mean(gt_rewards))
         total_reward_gt.append(gt_rewards.cpu().numpy())
         
         ### Obtaining predicted reward
         timestep_list = torch.tensor([1]).to(inputs.device).repeat(len(inputs))
         pred_rewards = reward_model(inputs, timestep_list)
         
-        print("rewards_mean: ", torch.mean(pred_rewards))
+        # print("rewards_mean: ", torch.mean(pred_rewards))
         total_reward_pred.append(pred_rewards.cpu().numpy())
 
     total_reward_gt = np.concatenate(total_reward_gt, axis=None)
     total_reward_pred = np.concatenate(total_reward_pred, axis=None)
 
+    print("eval_reward_mean: ", np.mean(total_reward_gt) )
+    print("reward_mean: ", np.mean(total_reward_pred) )
+    print("KL-entropy: ", KL_entropy)
+    
     wandb.log({"eval_reward_mean": np.mean(total_reward_gt) ,
                "eval_reward_std": np.std(total_reward_gt) })
     wandb.log({"reward_mean": np.mean(total_reward_pred) ,

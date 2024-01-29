@@ -1,12 +1,10 @@
-import torch
-from PIL import Image
-import sys
-import os
-import copy
-import gc
+import os,sys
+os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 cwd = os.getcwd()
 sys.path.append(cwd)
 
+import torch
+from PIL import Image
 from aesthetic_scorer import MLPDiff, AestheticScorerDiff
 from transformers import CLIPModel, CLIPProcessor
 import torchvision
@@ -32,7 +30,7 @@ encoded_imgs = torch.load(f"./model/pre_generated_latents-15360.pth")
 print(encoded_imgs.shape)
 
 latents_dataset = torch.utils.data.TensorDataset(encoded_imgs)
-train_loader = torch.utils.data.DataLoader(latents_dataset, batch_size=16, shuffle=False)
+train_loader = torch.utils.data.DataLoader(latents_dataset, batch_size=32, shuffle=False)
 
 device = 'cuda'
 eval_model = MLPDiff().to(device)
@@ -54,7 +52,7 @@ real_y_list = []
 
 for i, (inputs,) in enumerate(tqdm(train_loader, desc="Evaluating Progress")):
     with torch.no_grad():
-        print(i)
+        # print(i)
         inputs = inputs.to(device)
         
         im_pix_un = sd_model.vae.decode(inputs.to(sd_model.vae.dtype) / 0.18215).sample
@@ -77,9 +75,20 @@ print(noisy_y.shape)
 torch.save(noisy_y, "./model/pre_generated_scores-15360.pth")
 
 real_y = torch.cat(real_y_list, dim=0)
+torch.save(real_y, "./model/pre_generated_real_scores-15360.pth")
+
 real_y = real_y.cpu().detach().numpy()
 print(real_y.shape, real_y.min(), real_y.max())
-plt.hist(real_y[:,0], bins='auto', edgecolor='black')
+# Calculate the 90th percentile value
+p90 = np.percentile(real_y[:,0], 90)
+
+plt.hist(real_y[:,0], bins='auto', color='darkgreen', edgecolor='black')
+
+# Plot the 90th percentile line
+plt.axvline(p90, color='red', linestyle='dashed', linewidth=2)
+
+# Annotate the 90th percentile line
+plt.text(p90, plt.ylim()[1]*0.9, f'90th percentile: {p90:.2f}', color='red')
 
 # Add titles and labels
 plt.title(f'Histogram of SD Generated Dataset ({len(real_y)} images)')

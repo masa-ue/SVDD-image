@@ -48,7 +48,7 @@ if args.seed > 0:
 else:
     init_latents = None
 
-run_name = f"target_{args.target}_guidance_{args.guidance}"
+run_name = f"y_{args.target}_guidance_{args.guidance}"
 unique_id = datetime.datetime.now().strftime("%Y.%m.%d_%H.%M.%S")
 run_name = run_name + '_' + unique_id
 
@@ -135,19 +135,23 @@ with torch.no_grad():
         
         ### Obtaining ground truth reward
         gt_rewards = eval_model(inputs)
-        print("eval_rewards_mean: ", torch.mean(gt_rewards))
+        # print("eval_rewards_mean: ", torch.mean(gt_rewards))
         total_reward_gt.append(gt_rewards.cpu().numpy())
         
         ### Obtaining predicted reward
         timestep_list = torch.tensor([1]).to(inputs.device).repeat(len(inputs))
         pred_rewards = reward_model(inputs, timestep_list)
         
-        print("rewards_mean: ", torch.mean(pred_rewards))
+        # print("rewards_mean: ", torch.mean(pred_rewards))
         total_reward_pred.append(pred_rewards.cpu().numpy())
 
     total_reward_gt = np.concatenate(total_reward_gt, axis=None)
     total_reward_pred = np.concatenate(total_reward_pred, axis=None)
 
+    print("eval_reward_mean: ", np.mean(total_reward_gt) )
+    print("reward_mean: ", np.mean(total_reward_pred) )
+    print("KL-entropy: ", KL_entropy)
+    
     wandb.log({"eval_reward_mean": np.mean(total_reward_gt) ,
                "eval_reward_std": np.std(total_reward_gt) })
     wandb.log({"reward_mean": np.mean(total_reward_pred) ,

@@ -23,8 +23,9 @@ logger = get_logger(__name__)
 ### Configs #### 
 
 lr = 0.001
-num_epochs = 50
-batch_size = 16 # Batch size for training
+num_epochs = 100
+batch_size = 32 # Batch size for training
+
 # stable diffusion hyperparameters.
 latent_dim = 4  
 num_inference_steps = 50
@@ -41,8 +42,13 @@ logger.info(f"\n{config}")
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
+# model = SinusoidalTimeMLP().to(device)
 
-model = SinusoidalTimeMLP().to(device)
+# resume training
+model = torch.load('model/online/reward_predictor_epoch_8.pth').to(device)
+model.train()
+model.requires_grad_(True)
+
 
 # Define the loss function and optimizer
 criterion = nn.MSELoss()
@@ -69,7 +75,7 @@ clip = CLIPModel.from_pretrained("openai/clip-vit-large-patch14")
 clip.eval()
 clip.to(device)
 
-for epoch in tqdm(range(num_epochs), desc="Epoch"):
+for epoch in tqdm(range(9, num_epochs), desc="Epoch"):
     model.train()
     epoch_loss = 0.0
     for i, (inputs, targets) in enumerate(tqdm(train_loader, desc="Training Progress")):
