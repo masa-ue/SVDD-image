@@ -9,10 +9,13 @@ wandb
 *.npy
 *.jpg
 *.txt
+*.png
+*.zip
 new_data
 logs/
 images/
 model/pre_generated_latents-15360.pth
+sub_data/train
 # model/online/
 
 
