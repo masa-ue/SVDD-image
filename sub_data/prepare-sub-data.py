@@ -11,6 +11,7 @@ from transformers import CLIPModel, CLIPProcessor
 from transformers import BlipProcessor, BlipForConditionalGeneration
 import os
 import sys
+import json
 sys.path.append(os.getcwd())
 
 from importlib import resources
@@ -44,7 +45,7 @@ class MLPDiff(nn.Module):
 def load_images_from_folder(folder):
     images = []
     for filename in os.listdir(folder):
-        if filename.endswith(".jpg"):
+        if filename.endswith(".png"):
             # print(filename)
             path = os.path.join(folder, filename)
             images.append(path)
@@ -54,13 +55,9 @@ def load_images_from_folder(folder):
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 # Load images from the folder
-folder = './images'
+folder = './sub_data/train'
 images = load_images_from_folder(folder)
 print("Number of images:", len(images))
-
-with open("data/images.txt", "w") as file:
-    for item in images:
-        file.write(item + "\n")
 
 # Load the model and tokenizer
 caption_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base").to(device)
@@ -97,8 +94,10 @@ failed_images = []
 # encoded_images = []
 c = 0
 
+data_list = []
+
 # Ensure the sub_data directory exists
-os.makedirs('sub_data/images', exist_ok=True)
+os.makedirs('sub_data/train', exist_ok=True)
 
 for img_path in images:
     print(c)
@@ -125,14 +124,24 @@ for img_path in images:
             noisy_y = real_y + torch.randn_like(real_y,device=device) * 0.1
         
         # Save a copy of the image to the sub_data directory
-        sub_data_path = os.path.join('sub_data/images', os.path.basename(img_path))
-        shutil.copy(img_path, sub_data_path)
+        # sub_data_path = os.path.join('sub_data/train', os.path.basename(img_path))
+        # shutil.copy(img_path, sub_data_path)
         
         # Write the image path and caption and score as 3 columns separated by comma
-        strings.append(f"{sub_data_path},{caption},{real_y.item()}")    
+        # strings.append(f"{sub_data_path},{caption},{real_y.item()}")    
         # x.append(embeddings.cpu().detach().numpy())
         y_noisy.append(noisy_y.cpu().detach().numpy())
         y_real.append(real_y.cpu().detach().numpy())
+        
+        file_name = img_path.split('/')[-1]
+        score = real_y.item()
+        # Create a new dictionary for each row
+        data_dict = {
+            "file_name": file_name,
+            "text": caption,
+            'score': score,
+        }
+        data_list.append(data_dict)
 
         
     except Exception as e:
@@ -144,10 +153,16 @@ for img_path in images:
 
 ## saving figures
 
-with open('sub_data/path_caption_score.csv', 'a', encoding='utf-8') as file:
-    file.write("Img_path, Caption, Score\n")
-    for string in strings:
-        file.write(string + '\n')
+# with open('sub_data/path_caption_score.csv', 'a', encoding='utf-8') as file:
+#     file.write("Img_path, Caption, Score\n")
+#     for string in strings:
+#         file.write(string + '\n')
+
+jsonl_file_path = 'sub_data/train/metadata.jsonl'
+with open(jsonl_file_path, mode='w', encoding='utf-8') as json_file:
+    for json_object in data_list:
+        json_file.write(json.dumps(json_object) + "\n")
+
 
 # x = np.vstack(x)
 # print(x.shape)

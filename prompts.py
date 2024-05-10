@@ -29,3 +29,6 @@ def from_file(path, low=None, high=None):
 
 def eval_simple_animals():
     return from_file("eval_simple_animals.txt")
+
+def eval_aesthetic_animals():
+    return from_file("eval_aesthetic_animals.txt")

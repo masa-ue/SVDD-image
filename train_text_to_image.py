@@ -179,6 +179,35 @@ def log_validation(vae, text_encoder, tokenizer, unet, args, accelerator, weight
 
         images.append(image)
 
+    from transformers import CLIPModel, CLIPProcessor
+    from aesthetic_scorer import MLPDiff
+    from importlib import resources
+    ASSETS_PATH = resources.files("assets")
+
+    clip = CLIPModel.from_pretrained("openai/clip-vit-large-patch14")
+    processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
+
+    clip.to(accelerator.device)
+    clip.requires_grad_(False)
+    clip.eval()
+
+    eval_model = MLPDiff().to(accelerator.device)
+    eval_model.requires_grad_(False)
+    eval_model.eval()
+    s = torch.load(ASSETS_PATH.joinpath("sac+logos+ava1-l14-linearMSE.pth"), map_location=accelerator.device)   # load the model you trained previously or the model available in this repo
+    eval_model.load_state_dict(s)
+    
+    inputs = processor(images=images, return_tensors="pt")
+    with torch.no_grad():
+
+        # Get CLIP embeddings
+        inputs = {k: v.to(accelerator.device) for k, v in inputs.items()}
+        embeddings = clip.get_image_features(**inputs)
+        embeddings = embeddings / torch.linalg.vector_norm(embeddings, dim=-1, keepdim=True)
+        
+        # Get the predicted score
+        real_y = eval_model(embeddings).to(accelerator.device)
+    
     for tracker in accelerator.trackers:
         if tracker.name == "tensorboard":
             np_images = np.stack([np.asarray(img) for img in images])
@@ -187,7 +216,7 @@ def log_validation(vae, text_encoder, tokenizer, unet, args, accelerator, weight
             tracker.log(
                 {
                     "validation": [
-                        wandb.Image(image, caption=f"{i}: {args.validation_prompts[i]}")
+                        wandb.Image(image, caption=f"{i}: {args.validation_prompts[i]} | {real_y[i][0].item():.2f}")
                         for i, image in enumerate(images)
                     ]
                 }
@@ -437,7 +466,7 @@ def parse_args():
     parser.add_argument(
         "--report_to",
         type=str,
-        default="tensorboard",
+        default="wandb",
         help=(
             'The integration to report the results and logs to. Supported platforms are `"tensorboard"`'
             ' (default), `"wandb"` and `"comet_ml"`. Use `"all"` to report to all integrations.'
@@ -447,7 +476,7 @@ def parse_args():
     parser.add_argument(
         "--checkpointing_steps",
         type=int,
-        default=500,
+        default=40,
         help=(
             "Save a checkpoint of the training state every X updates. These checkpoints are only suitable for resuming"
             " training using `--resume_from_checkpoint`."
@@ -475,7 +504,7 @@ def parse_args():
     parser.add_argument(
         "--validation_epochs",
         type=int,
-        default=5,
+        default=1,
         help="Run validation every X epochs.",
     )
     parser.add_argument(
@@ -784,6 +813,7 @@ def main():
         class_labels = []
         scores = examples[score_column]
         for score in scores:
+            score = float(score)
             if score >= 6.0:
                 class_labels.append(2)
             elif 5.5 <= score < 6.0:
@@ -957,6 +987,9 @@ def main():
 
                 # Get the text embedding for conditioning
                 encoder_hidden_states = text_encoder(batch["input_ids"], return_dict=False)[0]
+                
+                # Get the class labels for conditioning
+                class_labels = batch["class_labels"]
 
                 # Get the target for loss depending on the prediction type
                 if args.prediction_type is not None:

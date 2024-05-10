@@ -12,10 +12,11 @@ import os
 from aesthetic_scorer import SinusoidalTimeMLP, MLPDiff
 import wandb
 import argparse
+from tqdm import tqdm
 import datetime
 
 import prompts as prompts_file
-eval_prompt_fn = getattr(prompts_file, 'eval_simple_animals')
+eval_prompt_fn = getattr(prompts_file, 'eval_aesthetic_animals')
 
 
 
@@ -28,7 +29,7 @@ def parse():
     parser.add_argument("--num_images", type=int, default=16)
     parser.add_argument("--bs", type=int, default=2)
     parser.add_argument("--val_bs", type=int, default=4)
-    parser.add_argument("--seed", type=int, default=-1)
+    parser.add_argument("--seed", type=int, default=42)
 
     args = parser.parse_args()
     return args
@@ -48,7 +49,7 @@ if args.seed > 0:
 else:
     init_latents = None
 
-run_name = f"y_{args.target}_guidance_{args.guidance}"
+run_name = f"Guidance_y={int(args.target)}_gamma={int(args.guidance)}"
 unique_id = datetime.datetime.now().strftime("%Y.%m.%d_%H.%M.%S")
 run_name = run_name + '_' + unique_id
 
@@ -93,7 +94,7 @@ image = []
 eval_prompt_list = []
 KL_list = []
 
-for i in range(args.num_images // args.bs):
+for i in tqdm(range(args.num_images // args.bs), desc="Generating Images"):
     wandb.log(
         {"inner_iter": i}
     )
@@ -160,11 +161,15 @@ with torch.no_grad():
 
 if save_file:
     images = []
+    log_dir = os.path.join(args.out_dir, "eval_vis")
+    os.makedirs(log_dir, exist_ok=True)
     for idx, im in enumerate(image):
-        im.save(args.out_dir +'/'+ f'{idx}_gt_{total_reward_gt[idx]:.4f}_pred_{total_reward_pred[idx]:.4f}.png')
+        # im.save(args.out_dir +'/'+ f'{idx}_gt_{total_reward_gt[idx]:.4f}_pred_{total_reward_pred[idx]:.4f}.png')
+        prompt = eval_prompt_list[idx]
+        im.save(f"{log_dir}/{idx:03d}_{prompt}_{total_reward_gt[idx]:.3f}.png")
         
         pil = im.resize((256, 256))
-        prompt = eval_prompt_list[idx]
+        
         reward = total_reward_gt[idx]
         images.append(wandb.Image(pil, caption=f"{prompt:.25} | {reward:.2f}"))
 

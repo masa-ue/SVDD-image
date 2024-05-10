@@ -13,6 +13,7 @@ wandb
 *.zip
 new_data
 logs/
+output/
 images/
 model/pre_generated_latents-15360.pth
 sub_data/train
