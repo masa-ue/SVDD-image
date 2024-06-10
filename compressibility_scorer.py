@@ -114,12 +114,13 @@ class condition_CompressibilityScorerDiff(torch.nn.Module):
         super().__init__()
         self.dtype = dtype
         
-        state_dict = torch.load('comp_model/CNN_5class_v1_64_final_calibrated.pth')
+        # state_dict = torch.load('comp_model/CNN_5class_v1_64_final_calibrated.pth')
+        state_dict = torch.load('comp_model/CNN_3class_v3_final_calibrated.pth')
     
         self.scaler = TemperatureScaler()
         self.scaler.load_state_dict(state_dict['scaler'])
         
-        self.model = ThreeLayerConvNet(num_channels=3, num_classes=5)
+        self.model = ThreeLayerConvNet(num_channels=3, num_classes=3)
         self.model.load_state_dict(state_dict['model_state_dict'])
         
         self.eval()
