@@ -132,6 +132,22 @@ class condition_CompressibilityScorerDiff(torch.nn.Module):
         
         return probabilities, images
 
+class CompressibilityScorerDiff(torch.nn.Module):
+    def __init__(self, dtype):
+        super().__init__()
+        self.dtype = dtype
+        
+        state_dict = torch.load('comp_model/lr=1e-2_2024.06.27_04.52.36_38.pth')
+        
+        self.model = ThreeLayerConvNet(num_channels=3, num_classes=1)
+        self.model.load_state_dict(state_dict)
+        
+        self.eval()
+
+    def __call__(self, images):
+        predictions = self.model(images).squeeze(1)
+        
+        return predictions, images
 
 if __name__ == "__main__":
     scorer = condition_CompressibilityScorerDiff(dtype=torch.float32).cuda()
