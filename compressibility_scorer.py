@@ -137,7 +137,7 @@ class CompressibilityScorerDiff(torch.nn.Module):
         super().__init__()
         self.dtype = dtype
         
-        state_dict = torch.load('comp_model/lr=1e-2_2024.06.27_04.52.36_38.pth')
+        state_dict = torch.load('comp_model/lr=1e-2_2024.06.27_04.52.36_38.pth', weights_only=True)
         
         self.model = ThreeLayerConvNet(num_channels=3, num_classes=1)
         self.model.load_state_dict(state_dict)

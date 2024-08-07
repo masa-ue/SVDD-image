@@ -92,7 +92,7 @@ class AestheticScorerDiff(torch.nn.Module):
         super().__init__()
         self.clip = CLIPModel.from_pretrained("openai/clip-vit-large-patch14")
         self.mlp = MLPDiff()
-        state_dict = torch.load(ASSETS_PATH.joinpath("sac+logos+ava1-l14-linearMSE.pth"))
+        state_dict = torch.load(ASSETS_PATH.joinpath("sac+logos+ava1-l14-linearMSE.pth"), weights_only=True)
         self.mlp.load_state_dict(state_dict)
         self.dtype = dtype
         self.eval()

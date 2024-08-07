@@ -3,6 +3,7 @@ from sd_pipeline import DPS_continuous_SDPipeline
 from diffusers import DDIMScheduler
 import torch
 import numpy as np
+import random
 from PIL import Image
 import PIL
 from typing import Callable, List, Optional, Union, Dict, Any
@@ -17,16 +18,12 @@ import datetime
 from compressibility_scorer import CompressibilityScorerDiff, jpeg_compressibility
 from aesthetic_scorer import AestheticScorerDiff
 
-import prompts as prompts_file
-eval_prompt_fn = getattr(prompts_file, 'eval_aesthetic_animals')
-
-
 
 def parse():
     parser = argparse.ArgumentParser(description="Inference")
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--reward", type=str, default='compressibility')
-    parser.add_argument("--guidance", type=float, default=0.5)
+    parser.add_argument("--guidance", type=float, default=10)
     parser.add_argument("--out_dir", type=str, default="")
     parser.add_argument("--num_images", type=int, default=8)
     parser.add_argument("--bs", type=int, default=2)
@@ -46,6 +43,8 @@ save_file = True
 ## Image Seeds
 if args.seed > 0:
     torch.manual_seed(args.seed)
+    random.seed(args.seed)
+    np.random.seed(args.seed)
     shape = (args.num_images//args.bs, args.bs , 4, 64, 64)
     init_latents = torch.randn(shape, device=device)
 else:
@@ -64,7 +63,7 @@ except:
     pass
 
 
-wandb.init(project=f"DPS-{args.reward}", name=run_name,config=args)
+wandb.init(project=f"DPS-continuous-{args.reward}", name=run_name,config=args)
 
 
 sd_model = DPS_continuous_SDPipeline.from_pretrained("runwayml/stable-diffusion-v1-5", local_files_only=True)
@@ -96,6 +95,10 @@ sd_model.setup_scorer(scorer)
 # sd_model.set_target(args.target)
 sd_model.set_reward(args.reward)
 sd_model.set_guidance(args.guidance)
+
+### introducing evaluation prompts
+import prompts as prompts_file
+eval_prompt_fn = getattr(prompts_file, 'eval_aesthetic_animals')
 
 
 image = []
@@ -133,7 +136,7 @@ elif args.reward == 'aesthetic':
     eval_model = MLPDiff().to(device)
     eval_model.requires_grad_(False)
     eval_model.eval()
-    s = torch.load(ASSETS_PATH.joinpath("sac+logos+ava1-l14-linearMSE.pth"), map_location=device)   # load the model you trained previously or the model available in this repo
+    s = torch.load(ASSETS_PATH.joinpath("sac+logos+ava1-l14-linearMSE.pth"), map_location=device, weights_only=True)
     eval_model.load_state_dict(s)
     gt_dataset= AVACLIPDataset(image)    
     
@@ -151,6 +154,7 @@ with torch.no_grad():
         
         elif args.reward == 'aesthetic':
             scores = eval_model(inputs)
+            scores = scores.squeeze(1)
         
         eval_rewards.extend(scores.tolist())
 

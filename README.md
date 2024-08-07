@@ -1,69 +1,33 @@
-<h1 align='center' style="text-align:center; font-weight:bold; font-size:2.0em;letter-spacing:2.0px;"> Reward-Directed Conditional Diffusion: </br> Provable Distribution Estimation and Reward Improvement </h1>
-<p align='center' style="text-align:center;font-size:1.25em;"> 
-    Hui Yuan  ,&nbsp; 
-    <a href="https://hackyhuang.github.io/" target="_blank" style="text-decoration: none;">Kaixuan Huang</a> ,&nbsp; 
-    Chengzhuo Ni  ,&nbsp; 
-    <a href="https://minshuochen.github.io/" target="_blank" style="text-decoration: none;">Minshuo Chen</a> ,&nbsp; 
-    <a href="https://mwang.princeton.edu/" target="_blank" style="text-decoration: none;">Mengdi Wang</a>
-    <br/>  
-Princeton University
-</p>
+## DPS baseline with continuous regressors
 
-<p align='center';>
-<b>
-<em>NeurIPS 2023</em> <br>
-</b>
-</p>
+### 1. compressibility
 
-<p align='center' style="text-align:center;font-size:2.5 em;">
-<b>
-    <a href="https://arxiv.org/abs/2307.07055" target="_blank" style="text-decoration: none;">arXiv</a>&nbsp;
-</b>
-</p>
+for compressibility, run the following. From my (preliminary) observation, I feel guidance here can be from 1~3. Even guidance strength=3 might be too strong as many generations loss fidelity. The rewards are saved to `scores.npy` and `eval_rewards.txt` and can be directly loaded.  
+(I feel 1.0, 2.0 seem to be good.)
 
------
+Note that by default, in inference the batch size is `2`, which would take `~27` Gb CUDA memory.
 
-This repo contains the codes for replicating the experiments in our paper.
+```
+CUDA_VISIBLE_DEVICES=4 python inference_DPS_regressor.py --reward compressibility --guidance 1 --num_images=128
+```
 
-![](asset/demo.png)
+### 2. aesthetic scores
+
+for aesthetic scores, run the following. From my (preliminary) observation, I feel guidance here can be from 0.5~2.0. You may try some values in this range, and as you may see, this DPS guidance does not make a big difference compared to pre-trained model... Guidance strength=2.5 may even be too strong which leads to decreased fidelity.  
+(I feel 1.0, 1.5 seem to be good.)
+
+```
+CUDA_VISIBLE_DEVICES=4 python inference_DPS_regressor.py --reward aesthetic --guidance 0.1 --num_images=128
+```
+
+#### Current results
+
+For aesthetic scores, I have added generated samples from the pre-trained model and their statistics in `making-plots/Eval_Pretrained-512_2024.05.17_13.52.31`.
 
 ### Requirements
 
+Actually I recommend directly using the `alignprop` env rather than following the command below
+
 ```
 pip install -r requirements.txt
-```
-
-
-### Usage
-
-1. Randomly generate a ground-truth reward model and the reward labels for CIFAR10 dataset.
-```
-python3 fake_dataset.py
-```
-The ground-truth reward model (a ResNet18 model with the final layer replaced by a randomly initialized linear layer) is saved at `reward_model.pth`, and the reward labels are saved at `cifar10_outputs_with_noise.npy`.
-
-2. Train a 3-layer ConvNet (on top of the frozen StableDiffusion v1.5 VAE embedding space) to predict the rewards 
-```
-python3 train.py 
-```
-The default config is  `lr = 0.001, num_data = 50000, num_epochs = 100` and can be modified in `train.py`.
-
-3. Perform Reward-Directed Conditional Diffusion using
-```
-python3 inference.py --target 1 --guidance 100 --num_images 100
-```
-
-The following term will be added to each step of the diffusion model. 
-$$\nabla_x \log p_t(y|x) = - \text{guidance}  \cdot  \nabla_x \Big[ \frac12 \| \text{target}-\mu_\theta(x)\|_2^2 \Big].$$
-
-## Citation
-If you find this useful in your research, please consider citing our paper.
-
-```
-@article{yuan2023reward,
-  title={Reward-Directed Conditional Diffusion: Provable Distribution Estimation and Reward Improvement},
-  author={Yuan, Hui and Huang, Kaixuan and Ni, Chengzhuo and Chen, Minshuo and Wang, Mengdi},
-  journal={arXiv preprint arXiv:2307.07055},
-  year={2023}
-}
 ```

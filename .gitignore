@@ -6,9 +6,9 @@ log
 data
 old*
 wandb
-*.npy
+# *.npy
 *.jpg
-*.txt
+# *.txt
 *.png
 *.zip
 new_data
