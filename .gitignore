@@ -9,7 +9,6 @@ wandb
 # *.npy
 *.jpg
 # *.txt
-*.png
 *.zip
 new_data
 logs/
