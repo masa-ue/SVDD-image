@@ -22,7 +22,6 @@ def parse():
     parser = argparse.ArgumentParser(description="Inference")
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--reward", type=str, default='aesthetic')
-    parser.add_argument("--guidance", type=float, default=10)
     parser.add_argument("--out_dir", type=str, default="")
     parser.add_argument("--num_images", type=int, default= 3)
     parser.add_argument("--bs", type=int, default= 3)
@@ -49,7 +48,7 @@ if args.seed > 0:
 else:
     init_latents = None
 
-run_name = f"{args.reward}_guidance={args.guidance}"
+run_name = f"{args.reward}"
 unique_id = datetime.datetime.now().strftime("%Y.%m.%d_%H.%M.%S")
 run_name = run_name + '_' + unique_id
 
@@ -62,7 +61,7 @@ except:
     pass
 
 
-wandb.init(project=f"DPS-continuous-{args.reward}", name=run_name,config=args)
+wandb.init(project=f"SVDD-{args.reward}", name=run_name,config=args)
 
 
 sd_model = Decoding_SDPipeline.from_pretrained("runwayml/stable-diffusion-v1-5", local_files_only=True)
@@ -93,7 +92,6 @@ scorer.eval()
 sd_model.setup_scorer(scorer)
 # sd_model.set_target(args.target)
 sd_model.set_reward(args.reward)
-sd_model.set_guidance(args.guidance)
 sd_model.set_parameters(args.bs, args.duplicate_size)
 
 ### introducing evaluation prompts

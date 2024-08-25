@@ -12,7 +12,7 @@ Here, the pre-trained model is a stable diffusion model. We optimize compressbil
 Run the following: 
 
 ```
-CUDA_VISIBLE_DEVICES=0 python inference_decoding_all.py --reward 'compressibility'  --guidance 0.0 --bs 3 --num_images 3 --duplicate_size 20 
+CUDA_VISIBLE_DEVICES=0 python inference_decoding_all.py --reward 'compressibility' --bs 3 --num_images 3 --duplicate_size 20 
 ```
 
 Here is a result. 
@@ -26,7 +26,7 @@ Here, the pre-trained model is a stable diffusion model. We optimize compressbil
 Run the following 
 
 ```
-CUDA_VISIBLE_DEVICES=0 python inference_decoding_all.py --reward 'compressibility'  --guidance 0.0 --bs 3 --num_images 3 --duplicate_size 20 
+CUDA_VISIBLE_DEVICES=0 python inference_decoding_all.py --reward 'compressibility' --bs 3 --num_images 3 --duplicate_size 20 
 ```
 Here is a result. 
 
