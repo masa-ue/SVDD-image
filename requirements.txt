@@ -2,9 +2,9 @@ accelerate==0.17.0
 diffusers[torch]==0.17.1
 wandb
 ipdb
-torchvision==0.15.2
 transformers==4.30.2
 hpsv2
+scikit-learn
 inflect==6.0.4
 pydantic==1.10.13
 absl-py

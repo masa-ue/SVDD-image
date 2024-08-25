@@ -8,15 +8,16 @@ wandb
 *.jpg
 *.zip
 new_data
-online
-model
+online/
+model/
 logs/
 output/
 images/
 model/pre_generated_latents-15360.pth
 sub_data/train
 model/online/
-
+.vscode/
+making_plots/
 
 #
 
