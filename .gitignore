@@ -1,22 +1,21 @@
 #
 
 *.sh
-# *.pth
 log
 data
 old*
 wandb
-# *.npy
 *.jpg
-# *.txt
 *.zip
 new_data
+online/
+model/
 logs/
 output/
 images/
 model/pre_generated_latents-15360.pth
 sub_data/train
-# model/online/
+model/online/
 
 
 #
@@ -34,7 +33,7 @@ __pycache__/
 build/
 develop-eggs/
 dist/
-comp_model/
+
 downloads/
 eggs/
 .eggs/
