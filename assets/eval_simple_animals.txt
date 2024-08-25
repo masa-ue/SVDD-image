@@ -1,6 +1,8 @@
-snail
-hippopotamus
-cheetah
-crocodile
-lobster
-octopus
+cat
+dog
+horse
+monkey
+rabbit
+butterfly
+peacock
+panda

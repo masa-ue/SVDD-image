@@ -20,6 +20,24 @@ from PIL import Image
 
 from diffusers_patch.utils import TemperatureScaler
 
+class JPEG_class:
+    def __init__(self):
+        pass 
+    def jpeg_compressibility(self,images):
+        if isinstance(images, torch.Tensor):
+            images = (images * 255).round().clamp(0, 255).to(torch.uint8).cpu().numpy()
+            images = images.transpose(0, 2, 3, 1)  # NCHW -> NHWC
+        pil_images = [Image.fromarray(image) for image in images]
+
+        sizes = []
+        with contextlib.ExitStack() as stack:
+            buffers = [stack.enter_context(io.BytesIO()) for _ in pil_images]
+            for image, buffer in zip(pil_images, buffers):
+                image.save(buffer, format="JPEG", quality=95)
+                sizes.append(buffer.tell() / 1000)  # Size in kilobytes
+        
+        return -np.array(sizes)
+    
 def jpeg_compressibility(images):
     if isinstance(images, torch.Tensor):
         images = (images * 255).round().clamp(0, 255).to(torch.uint8).cpu().numpy()

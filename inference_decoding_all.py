@@ -1,5 +1,4 @@
-
-from sd_pipeline import DPS_continuous_SDPipeline
+from sd_pipeline import DPS_continuous_SDPipeline,  Decoding_SDPipeline
 from diffusers import DDIMScheduler
 import torch
 import numpy as np
@@ -22,14 +21,14 @@ from aesthetic_scorer import AestheticScorerDiff
 def parse():
     parser = argparse.ArgumentParser(description="Inference")
     parser.add_argument("--device", default="cuda")
-    parser.add_argument("--reward", type=str, default='compressibility')
+    parser.add_argument("--reward", type=str, default='aesthetic')
     parser.add_argument("--guidance", type=float, default=10)
     parser.add_argument("--out_dir", type=str, default="")
-    parser.add_argument("--num_images", type=int, default=8)
-    parser.add_argument("--bs", type=int, default=50)
-    parser.add_argument("--val_bs", type=int, default=4)
+    parser.add_argument("--num_images", type=int, default= 3)
+    parser.add_argument("--bs", type=int, default= 3)
+    parser.add_argument("--val_bs", type=int, default=3)
     parser.add_argument("--seed", type=int, default=42)
-
+    parser.add_argument("--duplicate_size",type=int, default = 20)  
     args = parser.parse_args()
     return args
 
@@ -66,7 +65,7 @@ except:
 wandb.init(project=f"DPS-continuous-{args.reward}", name=run_name,config=args)
 
 
-sd_model = DPS_continuous_SDPipeline.from_pretrained("runwayml/stable-diffusion-v1-5", local_files_only=True)
+sd_model = Decoding_SDPipeline.from_pretrained("runwayml/stable-diffusion-v1-5", local_files_only=True)
 sd_model.to(device)
 
 # switch to DDIM scheduler
@@ -95,6 +94,7 @@ sd_model.setup_scorer(scorer)
 # sd_model.set_target(args.target)
 sd_model.set_reward(args.reward)
 sd_model.set_guidance(args.guidance)
+sd_model.set_parameters(args.bs, args.duplicate_size)
 
 ### introducing evaluation prompts
 import prompts as prompts_file
@@ -160,14 +160,14 @@ with torch.no_grad():
 
     eval_rewards = torch.tensor(eval_rewards)
 
-    print("KL-entropy: ", KL_entropy)
+
     print(f"eval_{args.reward}_rewards_mean", torch.mean(eval_rewards))
 
     
     wandb.log({
         f"eval_{args.reward}_rewards_mean": torch.mean(eval_rewards),
     })
-    wandb.log({"KL-entropy": KL_entropy })
+
 
 if save_file:
     images = []

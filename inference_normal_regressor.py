@@ -1,5 +1,5 @@
 
-from sd_pipeline import DPS_continuous_SDPipeline
+from sd_pipeline import Normal_continuous_SDPipeline
 from diffusers import DDIMScheduler
 import torch
 import numpy as np
@@ -66,7 +66,7 @@ except:
 wandb.init(project=f"DPS-continuous-{args.reward}", name=run_name,config=args)
 
 
-sd_model = DPS_continuous_SDPipeline.from_pretrained("runwayml/stable-diffusion-v1-5", local_files_only=True)
+sd_model = Normal_continuous_SDPipeline.from_pretrained("runwayml/stable-diffusion-v1-5", local_files_only=True)
 sd_model.to(device)
 
 # switch to DDIM scheduler

@@ -1,32 +1,47 @@
-## DPS baseline with continuous regressors
+# Derivative-Free Guidance in Diffusion Models with Soft Value-Based Decoding for Images 
 
-### 1. compressibility
+This code accompanies the paper on soft value-based decoding in diffusion models, where the objective is to maximize downstream reward functions in diffusion models. In this implementation, we focus on generating **images** with high scores. For **biological sequences**, refer to [here](https://github.com/masa-ue/SVDD). 
 
-for compressibility, run the following. From my (preliminary) observation, I feel guidance here can be from 1~3. Even guidance strength=3 might be too strong as many generations loss fidelity. The rewards are saved to `scores.npy` and `eval_rewards.txt` and can be directly loaded.  
-(I feel 1.0, 2.0 seem to be good.)
+![image](./media/summary_algorithm.png)
 
-Note that by default, in inference the batch size is `2`, which would take `~27` Gb CUDA memory.
 
-```
-CUDA_VISIBLE_DEVICES=4 python inference_DPS_regressor.py --reward compressibility --guidance 1 --num_images=128
-```
+### Compressbiltiy 
 
-### 2. aesthetic scores
+Here, the pre-trained model is a stable diffusion model. We optimize compressbiltiy.  
 
-for aesthetic scores, run the following. From my (preliminary) observation, I feel guidance here can be from 0.5~2.0. You may try some values in this range, and as you may see, this DPS guidance does not make a big difference compared to pre-trained model... Guidance strength=2.5 may even be too strong which leads to decreased fidelity.  
-(I feel 1.0, 1.5 seem to be good.)
+Run the following: 
 
 ```
-CUDA_VISIBLE_DEVICES=4 python inference_DPS_regressor.py --reward aesthetic --guidance 0.1 --num_images=128
+CUDA_VISIBLE_DEVICES=0 python inference_decoding_all.py --reward 'compressibility'  --guidance 0.0 --bs 3 --num_images 3 --duplicate_size 20 
 ```
 
-#### Current results
+Here is a result. 
 
-For aesthetic scores, I have added generated samples from the pre-trained model and their statistics in `making-plots/Eval_Pretrained-512_2024.05.17_13.52.31`.
+![image](./media/Images_compress.png)
+
+### Aesthetic score  
+
+Here, the pre-trained model is a stable diffusion model. We optimize compressbiltiy. We optimize asthetic predictors.  
+
+Run the following 
+
+```
+CUDA_VISIBLE_DEVICES=0 python inference_decoding_all.py --reward 'compressibility'  --guidance 0.0 --bs 3 --num_images 3 --duplicate_size 20 
+```
+Here is a result. 
+
+![image](./media/Images_asthetic.png)
+
+
+### Remark 
+
+We have adopoted the code from  
+
+
 
 ### Requirements
 
-Actually I recommend directly using the `alignprop` env rather than following the command below
+Actually I recommend directly using the `alignprop` env rather than following the command below 
 
 ```
 pip install -r requirements.txt
