@@ -1,0 +1,10 @@
+/data/yulai/backup/AlignProp/logs/Eval_Pretrained-512_2024.05.17_13.52.31
+Mean: 5.832728515625
+Std: 0.3401486900964917
+Min: 5.035
+Max: 6.909
+Median: 5.836
+25% Quantile: 5.58025
+75% Quantile: 6.09925
+Invalid Count: 0
+Total number: 512

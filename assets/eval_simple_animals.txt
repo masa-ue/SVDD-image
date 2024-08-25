@@ -1,0 +1,8 @@
+cat
+dog
+horse
+monkey
+rabbit
+butterfly
+peacock
+panda
