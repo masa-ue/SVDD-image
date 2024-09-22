@@ -9,12 +9,12 @@ from typing import Callable, List, Optional, Union, Dict, Any
 from dataset import AVACompressibilityDataset, AVACLIPDataset
 from vae import encode
 import os
-from aesthetic_scorer import SinusoidalTimeMLP, MLPDiff
+from aesthetic_scorer import AestheticScorerDiff_Time, MLPDiff
 import wandb
 import argparse
 from tqdm import tqdm
 import datetime
-from compressibility_scorer import CompressibilityScorerDiff, jpeg_compressibility
+from compressibility_scorer import CompressibilityScorerDiff, jpeg_compressibility, CompressibilityScorer
 from aesthetic_scorer import AestheticScorerDiff
 
 
@@ -23,11 +23,13 @@ def parse():
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--reward", type=str, default='aesthetic')
     parser.add_argument("--out_dir", type=str, default="")
-    parser.add_argument("--num_images", type=int, default= 3)
-    parser.add_argument("--bs", type=int, default= 3)
-    parser.add_argument("--val_bs", type=int, default=3)
+    parser.add_argument("--num_images", type=int, default=4)
+    parser.add_argument("--bs", type=int, default=2)
+    parser.add_argument("--val_bs", type=int, default=2)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--duplicate_size",type=int, default = 20)  
+    parser.add_argument("--duplicate_size",type=int, default=20)  
+    parser.add_argument("--variant", type=str, default="PM")
+    parser.add_argument("--valuefunction", type=str, default="")
     args = parser.parse_args()
     return args
 
@@ -48,7 +50,7 @@ if args.seed > 0:
 else:
     init_latents = None
 
-run_name = f"{args.reward}"
+run_name = f"{args.variant}_M={args.duplicate_size}_{args.valuefunction.split('/')[-1] if args.valuefunction != '' else ''}"
 unique_id = datetime.datetime.now().strftime("%Y.%m.%d_%H.%M.%S")
 run_name = run_name + '_' + unique_id
 
@@ -63,6 +65,10 @@ except:
 
 wandb.init(project=f"SVDD-{args.reward}", name=run_name,config=args)
 
+start_event = torch.cuda.Event(enable_timing=True)
+end_event = torch.cuda.Event(enable_timing=True)
+start_event.record()
+initial_memory = torch.cuda.memory_allocated()
 
 sd_model = Decoding_SDPipeline.from_pretrained("runwayml/stable-diffusion-v1-5", local_files_only=True)
 sd_model.to(device)
@@ -79,10 +85,21 @@ sd_model.vae.eval()
 sd_model.text_encoder.eval()
 sd_model.unet.eval()
 
+assert args.variant in ['PM', 'MC']
+
 if args.reward == 'compressibility':
-    scorer = CompressibilityScorerDiff(dtype=torch.float32).to(device)
+    if args.variant == 'PM':
+        scorer = CompressibilityScorer(dtype=torch.float32).to(device)
+    elif args.variant == 'MC':
+        scorer = CompressibilityScorerDiff(dtype=torch.float32).to(device)
 elif args.reward == 'aesthetic':
-    scorer = AestheticScorerDiff(dtype=torch.float32).to(device)
+    if args.variant == 'PM':
+        scorer = AestheticScorerDiff(dtype=torch.float32).to(device)
+    elif args.variant == 'MC':
+        scorer = AestheticScorerDiff_Time(dtype=torch.float32).to(device)
+        if args.valuefunction != "":
+            scorer.set_valuefunction(args.valuefunction)
+            scorer = scorer.to(device)
 else:
     raise ValueError("Invalid reward")
 
@@ -90,7 +107,7 @@ scorer.requires_grad_(False)
 scorer.eval()
 
 sd_model.setup_scorer(scorer)
-# sd_model.set_target(args.target)
+sd_model.set_variant(args.variant)
 sd_model.set_reward(args.reward)
 sd_model.set_parameters(args.bs, args.duplicate_size)
 
@@ -121,9 +138,18 @@ for i in tqdm(range(args.num_images // args.bs), desc="Generating Images"):
     image.extend(image_)
     KL_list.append(kl_loss)
 
-KL_entropy = torch.mean(torch.stack(KL_list))
+# KL_entropy = torch.mean(torch.stack(KL_list))
 
-assert len(image) == len(eval_prompt_list)
+end_event.record()
+torch.cuda.synchronize() # Wait for the events to complete
+gpu_time = start_event.elapsed_time(end_event)/1000 # Time in seconds
+max_memory = torch.cuda.max_memory_allocated()
+max_memory_used = (max_memory - initial_memory) / (1024 ** 2)
+
+wandb.log({
+        "GPUTimeInS": gpu_time,
+        "MaxMemoryInMb": max_memory_used,
+    })
 
 ###### evaluation and metric #####
 if args.reward == 'compressibility':

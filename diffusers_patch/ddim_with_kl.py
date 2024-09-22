@@ -322,12 +322,12 @@ def ddim_step_KL_modified(
         if variance_noise is None:
             model_shape = model_output.shape 
             variance_noise = randn_tensor(
-                    ( model_shape[0] * duplicate,  model_shape[1], model_shape[2], model_shape[3] ), generator=generator, device=model_output.device, dtype=model_output.dtype
+                    ( model_shape[0] * duplicate,  model_shape[1], model_shape[2], model_shape[3]), generator=generator, device=model_output.device, dtype=model_output.dtype
                 )
             variance = 1.0 * std_dev_t * variance_noise
             
             
-            prev_list = [ prev_sample_mean[i, :, :, :] + variance[i* duplicate:(i+1) * duplicate  ,:, :,:] for  i in range(batch_size) ] # (batch_size, 4, 64, 64)
+            prev_list = [prev_sample_mean[i, :, :, :] + variance[i* duplicate:(i+1) * duplicate  ,:, :,:] for  i in range(batch_size) ] # (batch_size, 4, 64, 64)
 
             prev_sample = torch.cat(prev_list)
 

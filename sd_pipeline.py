@@ -219,17 +219,17 @@ class Decoding_SDPipeline(StableDiffusionPipeline):
                                         noise_pred,   # (2,4,64,64),
                                         old_noise_pred, # (2,4,64,64),
                                         t,
-                                        latents,
+                                        latents,  # (2,4,64,64)
                                         eta=eta,  # 1.0
                                         batch_size = self.batch_size, 
-                                        duplicate = self.dubplicate_size
+                                        duplicate = self.duplicate
                                     )
                     kl_loss += torch.mean(kl_terms)
                 ##### Start Calcuate Next Weight (Value functions)
                 if i < len(timesteps) - 1: 
                     latent_model_input = torch.cat([latents] * 2) 
                     latent_model_input = self.scheduler.scale_model_input(latent_model_input, timesteps[i+1])
-                    noise_pred = self.unet(latent_model_input, timesteps[i+1], encoder_hidden_states= torch.cat([prompt_embeds] * self.dubplicate_size), cross_attention_kwargs=cross_attention_kwargs).sample             
+                    noise_pred = self.unet(latent_model_input, timesteps[i+1], encoder_hidden_states= torch.cat([prompt_embeds] * self.duplicate), cross_attention_kwargs=cross_attention_kwargs).sample             
                     noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     new_noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond) # Get noises corresponding to latents 
                     weights =  self.calculate_weight(
@@ -239,11 +239,10 @@ class Decoding_SDPipeline(StableDiffusionPipeline):
                     weights = weights.cpu().detach().numpy()
                     index_chosen = [ ]
                     for i in range(self.batch_size):
-                        index_chosen.append(i *self.dubplicate_size + np.argmax(weights[i*self.dubplicate_size : (i+1)*self.dubplicate_size]))
-                    #print(index_chosen) ### Selected Batches 
+                        index_chosen.append(i *self.duplicate + np.argmax(weights[i*self.duplicate : (i+1)*self.duplicate]))
                     latents = latents[index_chosen, :, :, :]
                 else:  #If we are in the last step 
-                    index_chosen = [i*self.dubplicate_size for i in range(self.batch_size)]
+                    index_chosen = [i*self.duplicate for i in range(self.batch_size)]
                     latents = latents[index_chosen, :, :, :]
 
                 # call the callback, if provided
@@ -306,40 +305,52 @@ class Decoding_SDPipeline(StableDiffusionPipeline):
 
     def set_guidance(self, guidance):
         self.target_guidance = guidance
+        
+    def set_variant(self, variant):
+        self.variant = variant
     
     def set_parameters(self, batch_size, duplicate_size):
         self.batch_size = batch_size
-        self.dubplicate_size = duplicate_size
+        self.duplicate = duplicate_size
 
    
     @torch.no_grad()
-    def calculate_weight(self, latents, new_noise_pred, t ):
-
+    def calculate_weight(self, latents, new_noise_pred, t): # t = 981, 961, 941 ..
         ## Calculate E[x_0|x_t]
-        pred_original_sample = predict_x0_from_xt(
-                            self.scheduler,
-                            new_noise_pred,   
-                            t,
-                            latents
-                        )
-        
-        '''
-        images = self.decode_latents(pred_original_sample)
-        images = (images * 255).round().astype("uint8")
-        weights = self.scorer.jpeg_compressibility(images)
-        '''
-        im_pix_un = self.vae.decode(pred_original_sample.to(self.vae.dtype) / 0.18215).sample
+        if self.variant == 'PM':
+            pred_original_sample = predict_x0_from_xt(
+                                        self.scheduler,
+                                        new_noise_pred,   
+                                        t,
+                                        latents
+                                    )
+            im_pix_un = self.vae.decode(pred_original_sample.to(self.vae.dtype) / 0.18215).sample
+        elif self.variant == 'MC':
+            im_pix_un = self.vae.decode(latents.to(self.vae.dtype) / 0.18215).sample
+            
         im_pix = ((im_pix_un / 2) + 0.5).clamp(0, 1) 
-   
 
-        resize = torchvision.transforms.Resize(224, antialias=False)
+        # resize = torchvision.transforms.Resize(224, antialias=False)
+        if self.reward == 'compressibility':
+            resize = torchvision.transforms.Resize(512, antialias=False)
+        elif self.reward == 'aesthetic':
+            resize = torchvision.transforms.Resize(224, antialias=False)
+        else:
+            raise ValueError('Invalid reward type')
         
         im_pix = resize(im_pix)
         normalize = torchvision.transforms.Normalize(mean=[0.48145466, 0.4578275, 0.40821073],
                                                 std=[0.26862954, 0.26130258, 0.27577711])
         im_pix = normalize(im_pix).to(im_pix_un.dtype)
+        
+        if self.variant == 'PM':
+            weights, _ = self.scorer(im_pix)
+        elif self.variant == 'MC':
+            if self.reward == 'compressibility':
+                weights, _ = self.scorer(latents, timesteps=t.repeat(im_pix.shape[0]))
+            else:
+                weights, _ = self.scorer(im_pix, timesteps=t.repeat(im_pix.shape[0]))
             
-        weights, _ = self.scorer(im_pix)
         return weights 
 
 
@@ -958,7 +969,7 @@ if __name__ == "__main__":
     torch.cuda.empty_cache()
     
     device = 'cuda'
-    pipeline = GuidedSDPipeline.from_pretrained("runwayml/stable-diffusion-v1-5", local_files_only=True)
+    pipeline = Normal_continuous_SDPipeline.from_pretrained("runwayml/stable-diffusion-v1-5", local_files_only=True)
     pipeline.to(device)
     pipeline.vae.requires_grad_(False)
     pipeline.text_encoder.requires_grad_(False)

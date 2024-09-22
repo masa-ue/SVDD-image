@@ -2,12 +2,12 @@
 
 *.sh
 log
-data
+# data
 old*
 wandb
 *.jpg
 *.zip
-new_data
+# new_data
 online/
 model/
 logs/

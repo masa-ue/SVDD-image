@@ -42,7 +42,7 @@ class SinusoidalTimeMLP(nn.Module):
 
     def sinusoidal_encoding(self, timesteps):
         # Normalize timesteps to be in the range [0, 1]
-        timesteps = timesteps.float() / 50.0  # Assuming timesteps are provided as integers
+        timesteps = timesteps.float() / 1000.0  # Assuming timesteps are provided as integers
     
         # Generate a series of frequencies
         frequencies = torch.exp(torch.arange(0, self.time_encoding_dim, 2, dtype=torch.float32) * -(math.log(10000.0) / self.time_encoding_dim))
@@ -102,6 +102,33 @@ class AestheticScorerDiff(torch.nn.Module):
         embed = self.clip.get_image_features(pixel_values=images)
         embed = embed / torch.linalg.vector_norm(embed, dim=-1, keepdim=True)
         return self.mlp(embed).squeeze(1), embed
+    
+    def generate_feats(self, images):
+        device = next(self.parameters()).device
+        embed = self.clip.get_image_features(pixel_values=images)
+        embed = embed / torch.linalg.vector_norm(embed, dim=-1, keepdim=True)
+        return embed
+
+class AestheticScorerDiff_Time(torch.nn.Module):
+    def __init__(self, dtype):
+        super().__init__()
+        self.clip = CLIPModel.from_pretrained("openai/clip-vit-large-patch14")
+        # self.mlp = torch.load('aes_model/reward_predictor_epoch_3.pth')
+        # self.mlp = torch.load('aes_model/reward_predictor_epoch_5_iter_4000.pth')
+        self.mlp = torch.load('aes_model/reward_predictor_epoch_9.pth')
+        self.dtype = dtype
+        self.eval()
+    
+    def set_valuefunction(self, pathtomodel):
+        self.mlp = torch.load(pathtomodel)
+        print('Value function loaded: ', pathtomodel)
+        self.mlp.eval()
+
+    def __call__(self, images, timesteps): # timesteps: torch.randint(low=0, high=50, size=(32,))
+        device = next(self.parameters()).device
+        embed = self.clip.get_image_features(pixel_values=images)
+        embed = embed / torch.linalg.vector_norm(embed, dim=-1, keepdim=True)
+        return self.mlp(embed, timesteps).squeeze(1), embed
     
     def generate_feats(self, images):
         device = next(self.parameters()).device
