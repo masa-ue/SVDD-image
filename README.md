@@ -35,7 +35,7 @@ Here is the result.
 ![image](./media/Images_compress.png) 
 
 
-![image](./media/Examples_comp.png) 
+![image](./media/Examples_comp.jpeg) 
 
 ### Aesthetic score  (PM)  
 
