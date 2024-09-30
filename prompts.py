@@ -32,3 +32,6 @@ def eval_simple_animals():
 
 def eval_aesthetic_animals():
     return from_file("eval_aesthetic_animals.txt")
+
+def eval_aesthetic_SMC_animals():
+    return from_file("eval_aesthetic_SMC_animals.txt")

@@ -19,41 +19,40 @@ conda install pytorch torchvision pytorch-cuda=12.1 -c pytorch -c nvidia
 pip install -r requirements.txt
 ```
 
-### Compressibility (PM/MC)  
+### Compressibility (PM)  
 
 We use Stable Diffusion v1.5 as the pre-trained model. We optimize compressibility.  
 
-Run the following for SVDD-PM or SVDD-MC:  
+Run the following for SVDD-PM
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 python inference_decoding_all.py --reward 'compressibility' --bs 3 --num_images 3 --duplicate_size 20 --variant PM
+CUDA_VISIBLE_DEVICES=0 python inference_decoding_nonp.py --reward 'compressibility' --bs 3 --num_images 3 --duplicate_size 20 --variant PM
 ```
 
-```bash
-CUDA_VISIBLE_DEVICES=0 python inference_decoding_all.py --reward 'compressibility' --bs 3 --num_images 3 --duplicate_size 20 --variant MC
-```
 
-Here is the result.  
+Here is the result.   
 
-![image](./media/Images_compress.png)
+![image](./media/Images_compress.png) 
 
-### Aesthetic score  (PM/MC)  
+
+![image](./media/Examples_comp.png) 
+
+### Aesthetic score  (PM)  
 
 We use Stable Diffusion v1.5 as the pre-trained model. We optimize aesthetic predictors.  
 
-Run the following for SVDD-PM or SVDD-MC:  
+Run the following for SVDD-PM:  
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 python inference_decoding_all.py --reward 'aesthetic' --bs 3 --num_images 3 --duplicate_size 20 --variant PM
+CUDA_VISIBLE_DEVICES=2 python inference_decoding_nonp.py --reward 'aesthetic' --bs 3 --num_images 3 --duplicate_size 20 --variant PM
 ```
 
-```bash
-CUDA_VISIBLE_DEVICES=0 python inference_decoding_all.py --reward 'aesthetic' --bs 3 --num_images 3 --duplicate_size 20 --variant MC
-```
 
 Here is the result.  
 
 ![image](./media/Images_asthetic.png)
+
+![image](./media/Examples_aesthetic.jpeg)
 
 ### Acknowledgement  
 

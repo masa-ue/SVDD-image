@@ -14,7 +14,7 @@ import wandb
 import argparse
 from tqdm import tqdm
 import datetime
-from compressibility_scorer import CompressibilityScorerDiff, jpeg_compressibility, CompressibilityScorer
+from compressibility_scorer import CompressibilityScorerDiff, jpeg_compressibility, CompressibilityScorer_modified
 from aesthetic_scorer import AestheticScorerDiff
 
 
@@ -89,7 +89,7 @@ assert args.variant in ['PM', 'MC']
 
 if args.reward == 'compressibility':
     if args.variant == 'PM':
-        scorer = CompressibilityScorer(dtype=torch.float32).to(device)
+        scorer = CompressibilityScorer_modified(dtype=torch.float32)#.to(device)
     elif args.variant == 'MC':
         scorer = CompressibilityScorerDiff(dtype=torch.float32).to(device)
 elif args.reward == 'aesthetic':
@@ -97,6 +97,8 @@ elif args.reward == 'aesthetic':
         scorer = AestheticScorerDiff(dtype=torch.float32).to(device)
     elif args.variant == 'MC':
         scorer = AestheticScorerDiff_Time(dtype=torch.float32).to(device)
+        #scorer = AestheticScorerDiff(dtype=torch.float32).to(device) 
+    
         if args.valuefunction != "":
             scorer.set_valuefunction(args.valuefunction)
             scorer = scorer.to(device)
